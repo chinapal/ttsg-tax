@@ -19,9 +19,9 @@
             padding: 20px;
             box-sizing: border-box;
         }
-				.description {
-						color: #777;
-				}
+        .description {
+            color: #777;
+        }
         h1 {
             font-size: 1.8rem;
             margin-top: 20px;
@@ -97,18 +97,21 @@
 
         <p>If you're both China & Singapore tax resident:</p>
         <div class="result" id="result">
-            <p>Cash Income: <span id="cashIncome"></span></p>
-            <p>Tax Comp.: <span id="compensation"></span></p>
-            <p>Total Income: <span id="totalIncome"></span></p>
-            <p>Total Tax: <span id="totalTax"></span></p>
-            <p>SG Tax: <span id="sgTax"></span></p>
-            <p>CN Tax: <span id="cnTax"></span></p>
+            <p>Cash Income: <span class="amount" id="cashIncome"></span></p>
+            <p>Tax Comp.: <span class="amount" id="compensation"></span></p>
+            <p>Total Income: <span class="amount" id="totalIncome"></span></p>
+            <p>Total Tax: <span class="amount" id="totalTax"></span></p>
+            <p>SG Tax: <span class="amount" id="sgTax"></span></p>
+            <p>CN Tax: <span class="amount" id="cnTax"></span></p>
+            <p>After Tax: <span class="amount" id="afterTax"></span></p>
         </div>
 
         <p>If you're only Singapore tax resident:</p>
         <div class="result" id="result">
+            <p>Total Income: <span class="amount" id="sgTotalIncome"></span></p>
             <p>SG Tax: <span id="sgTaxOnly"></span></p>
-            <p>Tax Diff: <span id="taxDiff"></span></p>
+            <p>After Tax: <span class="amount" id="sgAfterTax"></span></p>
+            <p>After Tax Diff: <span id="afterTaxDiff"></span></p>
         </div>
 
         <p>References</p>
@@ -127,7 +130,6 @@
     <script>
         // Singapore tax brackets
         const sgTaxBrackets = [
-            { upTo: 0, rate: 0, baseTax: 0 },
             { upTo: 20000, rate: 0, baseTax: 0 },
             { upTo: 30000, rate: 0.02, baseTax: 0 },
             { upTo: 40000, rate: 0.035, baseTax: 200 },
@@ -145,42 +147,41 @@
         
         // China tax brackets
         const cnTaxBrackets = [
-            { upTo: 0, rate: 0, baseTax: 0 },
-            { upTo: 60000, rate: 0, baseTax: 0 },
-            { upTo: 36000 + 60000, rate: 0.03, baseTax: 0 },
-            { upTo: 144000 + 60000, rate: 0.10, baseTax: 2520 },
-            { upTo: 300000 + 60000, rate: 0.20, baseTax: 16920 },
-            { upTo: 420000 + 60000, rate: 0.25, baseTax: 31920 },
-            { upTo: 660000 + 60000, rate: 0.30, baseTax: 52920 },
-            { upTo: 960000 + 60000, rate: 0.35, baseTax: 85920 },
-            { upTo: Infinity, rate: 0.45, baseTax: 181920 }
+            { upTo: 60000, rate: 0, reduct: 0 },
+            { upTo: 36000 + 60000, rate: 0.03, reduct: 0 },
+            { upTo: 144000 + 60000, rate: 0.10, reduct: 2520 },
+            { upTo: 300000 + 60000, rate: 0.20, reduct: 16920 },
+            { upTo: 420000 + 60000, rate: 0.25, reduct: 31920 },
+            { upTo: 660000 + 60000, rate: 0.30, reduct: 52920 },
+            { upTo: 960000 + 60000, rate: 0.35, reduct: 85920 },
+            { upTo: Infinity, rate: 0.45, reduct: 181920 }
         ];
 
         // Helper function to format both SGD and CNY with commas
-				function formatCurrencyCN(cnyValue, exchangeRate) {
-						const sgdValue = cnyValue / exchangeRate;
+        function formatCurrencyCN(cnyValue, exchangeRate) {
+            const sgdValue = cnyValue / exchangeRate;
             return formatCurrencies(sgdValue, cnyValue);
         }
-				function formatCurrencySG(sgdValue, exchangeRate) {
-						const cnyValue = sgdValue * exchangeRate;
+        function formatCurrencySG(sgdValue, exchangeRate) {
+            const cnyValue = sgdValue * exchangeRate;
             return formatCurrencies(sgdValue, cnyValue);
         }
         function formatCurrencies(sgdValue, cnyValue) {
-						const format = (value) => value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-						return `$${format(sgdValue)} / ¥${format(cnyValue)}`;
-				}
+            const format = (value) => value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            return `$${format(sgdValue)} / ¥${format(cnyValue)}`;
+        }
 
         // Calculate progressive tax
         function calculateProgressiveTax(income, taxBrackets) {
             let tax = 0;
-            for (let i = 0; i < taxBrackets.length; i++) {
-                const curr = taxBrackets[i];
-                const prev = taxBrackets[i - 1];
-                if (income <= curr.upTo) {
-                    const acc = income - prev.upTo
-                    return acc * curr.rate + curr.baseTax;
+            for (let i = 1; i < taxBrackets.length; i++) {
+                const curr = taxBrackets[i], prev = taxBrackets[i - 1];
+                const inRange = Math.min(curr.upTo, income) - prev.upTo;
+                if (inRange > 0) {
+                    tax += inRange * curr.rate;
                 }
             }
+            return tax;
         }
 
         // Main calculation logic
@@ -191,14 +192,9 @@
             const compensationPercentage = parseFloat(document.getElementById('compensationPercentage').value) / 100;
 
             if (!totalPackage || rsuPercentage < 0 || rsuPercentage > 1 || exchangeRate <= 0 || compensationPercentage < 0 || compensationPercentage > 1) {
-                document.getElementById('cashIncome').innerText = formatCurrencySG(0, exchangeRate);
-                document.getElementById('compensation').innerText = formatCurrencySG(0, exchangeRate);
-                document.getElementById('totalIncome').innerText = formatCurrencySG(0, exchangeRate);
-                document.getElementById('sgTax').innerText = formatCurrencySG(0, exchangeRate);
-                document.getElementById('totalTax').innerText = formatCurrencySG(0, exchangeRate);
-                document.getElementById('cnTax').innerText = formatCurrencySG(0, exchangeRate);
-                document.getElementById('sgTaxOnly').innerText = formatCurrencySG(0, exchangeRate);
-                document.getElementById('taxDiff').innerText = formatCurrencySG(0, exchangeRate);
+                for (const el of document.querySelectorAll('.amount')) {
+                    el.innerText = formatCurrencySG(0, exchangeRate);
+                }
                 return;
             }
 
@@ -209,15 +205,17 @@
             const compensation = cashPart * compensationPercentage;
 
             // Total Income (Cash + RSU + Compensation)
-            const totalIncome = cashPart + (totalPackage * rsuPercentage) + compensation;
+            const totalIncome = totalPackage + compensation;
 
             // Calculating Singapore and China taxes
             const sgTax = calculateProgressiveTax(totalIncome, sgTaxBrackets);
             const totalTaxInCNY = calculateProgressiveTax(totalIncome * exchangeRate, cnTaxBrackets);
             const sgTaxInCNY = sgTax * exchangeRate;
             const cnSpecificTaxInCNY = totalTaxInCNY - sgTaxInCNY;
-            const sgTaxOnlyInSGD = calculateProgressiveTax(cashPart + (totalPackage * rsuPercentage), sgTaxBrackets)
-            const taxDiff = totalTaxInCNY / exchangeRate - sgTaxOnlyInSGD;
+            const sgTaxOnlyInSGD = calculateProgressiveTax(totalPackage, sgTaxBrackets)
+            const afterTaxInSGD = totalIncome - totalTaxInCNY / exchangeRate;
+            const sgAfterTaxInSGD = totalPackage - sgTaxOnlyInSGD;
+            const afterTaxDiff = sgAfterTaxInSGD - afterTaxInSGD;
 
             // Display results using the helper function
             document.getElementById('cashIncome').innerText = formatCurrencySG(cashPart, exchangeRate);
@@ -226,8 +224,12 @@
             document.getElementById('sgTax').innerText = formatCurrencySG(sgTax, exchangeRate);
             document.getElementById('totalTax').innerText = formatCurrencyCN(totalTaxInCNY, exchangeRate);
             document.getElementById('cnTax').innerText = formatCurrencyCN(cnSpecificTaxInCNY, exchangeRate);
+            document.getElementById('afterTax').innerText = formatCurrencySG(afterTaxInSGD, exchangeRate);
+
+            document.getElementById('sgTotalIncome').innerText = formatCurrencySG(totalPackage, exchangeRate);
             document.getElementById('sgTaxOnly').innerText = formatCurrencySG(sgTaxOnlyInSGD, exchangeRate);
-            document.getElementById('taxDiff').innerText = formatCurrencySG(taxDiff, exchangeRate);
+            document.getElementById('sgAfterTax').innerText = formatCurrencySG(sgAfterTaxInSGD, exchangeRate);
+            document.getElementById('afterTaxDiff').innerText = formatCurrencySG(afterTaxDiff, exchangeRate);
         }
 
         // Initial calculation
