@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CN/SG Tax Calculator</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f7f9fc;
+        }
+        .container {
+            background: #ffffff;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+				.description {
+						color: #777;
+				}
+        h1 {
+            font-size: 1.8rem;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #333;
+        }
+        label {
+            font-size: 0.9rem;
+            color: #555;
+            margin-bottom: 5px;
+            display: block;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .result {
+            font-size: 80%;
+            margin: 20px -20px;
+            font-size: 1rem;
+            color: #444;
+            text-align: left;
+            background-color: #f0f8ff;
+            border-radius: 5px;
+            padding: 5px 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .result span {
+            font-weight: bold;
+            color: #333;
+        }
+        .references {
+            margin-top: 20px;
+        }
+        .references ul {
+            list-style-position: inside;
+            padding-left: 0;
+            list-style: none;
+        }
+        .references ul li {
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CN/SG Tax Calculator</h1>
+
+        <div class="result">
+          <p class="description">Tax deduction/CPF/etc. not considered</p>
+          <p class="description">Created by GPT thus not legally precise, use at your own risk.</p>
+          <p class="description">Calculation happens in your browser, not uploaded anywhere.
+          Source code: <a href="https://github.com/chinapal/ttsg-tax">chinapal/ttsg-tax</a></p>
+        </div>
+        
+        <label for="totalPackage">* Total Package (cash + RSU, in SGD):</label>
+        <input type="number" id="totalPackage" value="200000" step="1" oninput="calculateTax()">
+        
+        <label for="rsuPercentage">* RSU Ratio of Total Package (%):</label>
+        <input type="number" id="rsuPercentage" value="25" step="0.1" oninput="calculateTax()">
+
+        <label for="compensationPercentage">* Your Tax Compensation (%):</label>
+        <input type="number" id="compensationPercentage" value="10" step="0.1" oninput="calculateTax()">
+
+        <label for="exchangeRate">Exchange Rate (SGD to CNY):</label>
+        <input type="number" id="exchangeRate" value="5.39" step="0.01" oninput="calculateTax()">
+
+        <p>If you're both China & Singapore tax resident:</p>
+        <div class="result" id="result">
+            <p>Cash Income: <span id="cashIncome"></span></p>
+            <p>Tax Comp.: <span id="compensation"></span></p>
+            <p>Total Income: <span id="totalIncome"></span></p>
+            <p>Total Tax: <span id="totalTax"></span></p>
+            <p>SG Tax: <span id="sgTax"></span></p>
+            <p>CN Tax: <span id="cnTax"></span></p>
+        </div>
+
+        <p>If you're only Singapore tax resident:</p>
+        <div class="result" id="result">
+            <p>SG Tax: <span id="sgTaxOnly"></span></p>
+            <p>Tax Diff: <span id="taxDiff"></span></p>
+        </div>
+
+        <p>References</p>
+        <div class="references result">
+          <ul>
+            <li>Github: <a href="https://github.com/chinapal/ttsg-tax">chinapal/ttsg-tax</a></li>
+            <li>Total Income: total package + tax compensation</li>
+            <li>Total Tax: apply China tax w/o deductions</li>
+            <li>Tax Diff: CN & SG - SG only</li>
+            <li>SG tax rate: <a href="https://www.iras.gov.sg/taxes/individual-income-tax/basics-of-individual-income-tax/tax-residency-and-tax-rates/individual-income-tax-rates">https://www.iras.gov.sg/...</a></li>
+            <li>CN tax rate: <a href="https://cw.nwu.edu.cn/info/1009/2474.htm">https://cw.nwu.edu.cn/...</a></li>
+          </ul>
+        </div>
+    </div>
+
+    <script>
+        // Singapore tax brackets
+        const sgTaxBrackets = [
+            { upTo: 0, rate: 0, baseTax: 0 },
+            { upTo: 20000, rate: 0, baseTax: 0 },
+            { upTo: 30000, rate: 0.02, baseTax: 0 },
+            { upTo: 40000, rate: 0.035, baseTax: 200 },
+            { upTo: 80000, rate: 0.07, baseTax: 550 },
+            { upTo: 120000, rate: 0.115, baseTax: 3350 },
+            { upTo: 160000, rate: 0.15, baseTax: 7950 },
+            { upTo: 200000, rate: 0.18, baseTax: 13950 },
+            { upTo: 240000, rate: 0.19, baseTax: 21150 },
+            { upTo: 280000, rate: 0.195, baseTax: 28750 },
+            { upTo: 320000, rate: 0.20, baseTax: 36550 },
+            { upTo: 500000, rate: 0.22, baseTax: 44550 },
+            { upTo: 1000000, rate: 0.23, baseTax: 84150 },
+            { upTo: Infinity, rate: 0.24, baseTax: 199150 },
+        ];
+        
+        // China tax brackets
+        const cnTaxBrackets = [
+            { upTo: 0, rate: 0, baseTax: 0 },
+            { upTo: 60000, rate: 0, baseTax: 0 },
+            { upTo: 36000 + 60000, rate: 0.03, baseTax: 0 },
+            { upTo: 144000 + 60000, rate: 0.10, baseTax: 2520 },
+            { upTo: 300000 + 60000, rate: 0.20, baseTax: 16920 },
+            { upTo: 420000 + 60000, rate: 0.25, baseTax: 31920 },
+            { upTo: 660000 + 60000, rate: 0.30, baseTax: 52920 },
+            { upTo: 960000 + 60000, rate: 0.35, baseTax: 85920 },
+            { upTo: Infinity, rate: 0.45, baseTax: 181920 }
+        ];
+
+        // Helper function to format both SGD and CNY with commas
+				function formatCurrencyCN(cnyValue, exchangeRate) {
+						const sgdValue = cnyValue / exchangeRate;
+            return formatCurrencies(sgdValue, cnyValue);
+        }
+				function formatCurrencySG(sgdValue, exchangeRate) {
+						const cnyValue = sgdValue * exchangeRate;
+            return formatCurrencies(sgdValue, cnyValue);
+        }
+        function formatCurrencies(sgdValue, cnyValue) {
+						const format = (value) => value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+						return `$${format(sgdValue)} / ¥${format(cnyValue)}`;
+				}
+
+        // Calculate progressive tax
+        function calculateProgressiveTax(income, taxBrackets) {
+            let tax = 0;
+            for (let i = 0; i < taxBrackets.length; i++) {
+                const curr = taxBrackets[i];
+                const prev = taxBrackets[i - 1];
+                if (income <= curr.upTo) {
+                    const acc = income - prev.upTo
+                    return acc * curr.rate + curr.baseTax;
+                }
+            }
+        }
+
+        // Main calculation logic
+        function calculateTax() {
+            const totalPackage = parseFloat(document.getElementById('totalPackage').value);
+            const rsuPercentage = parseFloat(document.getElementById('rsuPercentage').value) / 100;
+            const exchangeRate = parseFloat(document.getElementById('exchangeRate').value);
+            const compensationPercentage = parseFloat(document.getElementById('compensationPercentage').value) / 100;
+
+            if (!totalPackage || rsuPercentage < 0 || rsuPercentage > 1 || exchangeRate <= 0 || compensationPercentage < 0 || compensationPercentage > 1) {
+                document.getElementById('cashIncome').innerText = formatCurrencySG(0, exchangeRate);
+                document.getElementById('compensation').innerText = formatCurrencySG(0, exchangeRate);
+                document.getElementById('totalIncome').innerText = formatCurrencySG(0, exchangeRate);
+                document.getElementById('sgTax').innerText = formatCurrencySG(0, exchangeRate);
+                document.getElementById('totalTax').innerText = formatCurrencySG(0, exchangeRate);
+                document.getElementById('cnTax').innerText = formatCurrencySG(0, exchangeRate);
+                document.getElementById('sgTaxOnly').innerText = formatCurrencySG(0, exchangeRate);
+                document.getElementById('taxDiff').innerText = formatCurrencySG(0, exchangeRate);
+                return;
+            }
+
+            // Calculate Cash part (non-RSU)
+            const cashPart = totalPackage * (1 - rsuPercentage);
+
+            // Calculate Compensation based on Cash part and Compensation percentage
+            const compensation = cashPart * compensationPercentage;
+
+            // Total Income (Cash + RSU + Compensation)
+            const totalIncome = cashPart + (totalPackage * rsuPercentage) + compensation;
+
+            // Calculating Singapore and China taxes
+            const sgTax = calculateProgressiveTax(totalIncome, sgTaxBrackets);
+            const totalTaxInCNY = calculateProgressiveTax(totalIncome * exchangeRate, cnTaxBrackets);
+            const sgTaxInCNY = sgTax * exchangeRate;
+            const cnSpecificTaxInCNY = totalTaxInCNY - sgTaxInCNY;
+            const sgTaxOnlyInSGD = calculateProgressiveTax(cashPart + (totalPackage * rsuPercentage), sgTaxBrackets)
+            const taxDiff = totalTaxInCNY / exchangeRate - sgTaxOnlyInSGD;
+
+            // Display results using the helper function
+            document.getElementById('cashIncome').innerText = formatCurrencySG(cashPart, exchangeRate);
+            document.getElementById('compensation').innerText = formatCurrencySG(compensation, exchangeRate);
+            document.getElementById('totalIncome').innerText = formatCurrencySG(totalIncome, exchangeRate);
+            document.getElementById('sgTax').innerText = formatCurrencySG(sgTax, exchangeRate);
+            document.getElementById('totalTax').innerText = formatCurrencyCN(totalTaxInCNY, exchangeRate);
+            document.getElementById('cnTax').innerText = formatCurrencyCN(cnSpecificTaxInCNY, exchangeRate);
+            document.getElementById('sgTaxOnly').innerText = formatCurrencySG(sgTaxOnlyInSGD, exchangeRate);
+            document.getElementById('taxDiff').innerText = formatCurrencySG(taxDiff, exchangeRate);
+        }
+
+        // Initial calculation
+        calculateTax();
+    </script>
+</body>
+</html>
