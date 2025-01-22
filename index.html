@@ -67,6 +67,18 @@
         .references ul li {
             padding-bottom: 5px;
         }
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .checkbox-row input, .checkbox-row label {
+            width: auto;
+            margin: 0;
+        }
+        .checkbox-row label {
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
@@ -81,26 +93,33 @@
         </div>
 
         <label for="monthlyPay">* Monthly Base Salary (cash, in SGD):</label>
-        <input type="number" id="monthlyPay" value="10000" step="1" oninput="calculateTax()">
+        <input type="number" id="monthlyPay" value="10000" step="1">
 
         <label for="bonusMonths">Target Bonus (in months):</label>
-        <input type="number" id="bonusMonths" value="3" step="1" oninput="calculateTax()">
+        <input type="number" id="bonusMonths" value="3" step="1">
         
         <label for="rsuSold">* RSU Sold (counts toward total income, in SGD):</label>
-        <input type="number" id="rsuSold" value="50000" step="1" oninput="calculateTax()">
+        <input type="number" id="rsuSold" value="50000" step="1">
 
         <label for="compensationPercentage">* Your Tax Compensation (%):</label>
-        <input type="number" id="compensationPercentage" value="10" step="0.1" oninput="calculateTax()">
+        <input type="number" id="compensationPercentage" value="10" step="0.1">
 
         <label for="exchangeRate">Exchange Rate (SGD to CNY):</label>
-        <input type="number" id="exchangeRate" value="5.39" step="0.01" oninput="calculateTax()">
+        <input type="number" id="exchangeRate" value="5.39" step="0.01">
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="separatedBonusTax" checked>
+          <label for="separatedBonusTax">Separated Bonus Tax <sup>[1]</sup></label>
+          <input type="checkbox" id="separatedRSUTax" checked>
+          <label for="separatedRSUTax">Separated RSU Tax <sup>[2]</sup></label>
+        </div>
 
         <p>If you're both China & Singapore tax resident:</p>
         <div class="result" id="result">
             <p>Cash Income: <span class="amount" id="cashIncome"></span></p>
             <p>Tax Comp.: <span class="amount" id="compensation"></span></p>
-            <p>Total Income <sup>[1]</sup>: <span class="amount" id="totalIncome"></span></p>
-            <p>Total Tax <sup>[2]</sup>: <span class="amount" id="totalTax"></span></p>
+            <p>Total Income <sup>[3]</sup>: <span class="amount" id="totalIncome"></span></p>
+            <p>Total Tax <sup>[4]</sup>: <span class="amount" id="totalTax"></span></p>
             <p>SG Tax: <span class="amount" id="sgTax"></span></p>
             <p>CN Tax: <span class="amount" id="cnTax"></span></p>
             <p>After Tax: <span class="amount" id="afterTax"></span></p>
@@ -109,18 +128,20 @@
         <p>If you're Singapore tax resident only:</p>
         <div class="result" id="result">
             <p>Total Income: <span class="amount" id="sgTotalIncome"></span></p>
-            <p>SG Tax <sup>[3]</sup>: <span id="sgTaxOnly"></span></p>
+            <p>SG Tax <sup>[5]</sup>: <span id="sgTaxOnly"></span></p>
             <p>After Tax: <span class="amount" id="sgAfterTax"></span></p>
             <p>After Tax Diff: <span id="afterTaxDiff"></span></p>
         </div>
 
         <p>References</p>
         <div class="references result">
-          <ul>
-            <li>[1]: Total Income = total package + tax compensation</li>
-            <li>[2]: CN tax rate <a href="https://cw.nwu.edu.cn/info/1009/2474.htm">https://cw.nwu.edu.cn/...</a></li>
-            <li>[3]: SG tax rate <a href="https://www.iras.gov.sg/taxes/individual-income-tax/basics-of-individual-income-tax/tax-residency-and-tax-rates/individual-income-tax-rates">https://www.iras.gov.sg/...</a></li>
-          </ul>
+            <ul>
+                <li>[1]: Calculate yearly bonus tax separately, <a href="https://www.chinatax.gov.cn/n810341/n810765/n812188/n812950/c1201370/content.html">https://www.chinatax.gov.cn...</a></li>
+                <li>[2]: Calculate RSU tax separately, <a href="https://www.gov.cn/zhengce/zhengceku/202308/content_6900234.htm">https://www.gov.cn/...</a></li>
+                <li>[3]: Total Income = total package + tax compensation</li>
+                <li>[4]: CN tax rate <a href="https://cw.nwu.edu.cn/info/1009/2474.htm" target="_blank">https://cw.nwu.edu.cn/...</a></li>
+                <li>[5]: SG tax rate <a href="https://www.iras.gov.sg/taxes/individual-income-tax/basics-of-individual-income-tax/tax-residency-and-tax-rates/individual-income-tax-rates" target="_blank">https://www.iras.gov.sg/...</a></li>
+            </ul>
         </div>
     </div>
 
@@ -181,51 +202,74 @@
             return tax;
         }
 
+        function calculateCNTax(incomeInCNY, bonusInCNY, rsuSoldInCNY) {
+            let income = incomeInCNY;
+            let tax = 0;
+            if (separatedBonusTax.checked) {
+                income -= bonusInCNY
+                tax += calculateProgressiveTax(bonusInCNY + 60000, cnTaxBrackets);
+            }
+            if (separatedRSUTax.checked) {
+                income -= rsuSoldInCNY
+                tax += calculateProgressiveTax(rsuSoldInCNY + 60000, cnTaxBrackets);
+            }
+            tax += calculateProgressiveTax(income, cnTaxBrackets);
+            return tax;
+        }
+
         // Main calculation logic
         function calculateTax() {
             const monthlyPay = parseFloat(document.getElementById('monthlyPay').value);
             const bonusMonths = parseFloat(document.getElementById('bonusMonths').value);
             const rsuSold = parseFloat(document.getElementById('rsuSold').value);
-            const exchangeRate = parseFloat(document.getElementById('exchangeRate').value);
+            const rate = parseFloat(document.getElementById('exchangeRate').value);
             const compensationPercentage = parseFloat(document.getElementById('compensationPercentage').value) / 100;
 
-            if (!monthlyPay || rsuSold < 0 || exchangeRate <= 0 || bonusMonths < 0 || compensationPercentage < 0 || compensationPercentage > 1) {
-                for (const el of document.querySelectorAll('.amount')) el.innerText = formatCurrencySG(0, exchangeRate);
+            if (!monthlyPay || rsuSold < 0 || rate <= 0 || bonusMonths < 0 || compensationPercentage < 0 || compensationPercentage > 1) {
+                for (const el of document.querySelectorAll('.amount')) el.innerText = formatCurrencySG(0, rate);
                 return;
             }
 
-            const cashPart = monthlyPay * (12 + bonusMonths);
+            const basePay = monthlyPay * 12;
+            const yearlyBonus = monthlyPay * bonusMonths;
+            const cashPart = basePay + yearlyBonus;
             const compensation = cashPart * compensationPercentage;
             const totalPackage = cashPart + rsuSold
             const totalIncome = totalPackage + compensation;
 
-            // Calculating Singapore and China taxes
+            // Both tax resident
             const sgTax = calculateProgressiveTax(totalIncome, sgTaxBrackets);
-            const totalTaxInCNY = calculateProgressiveTax(totalIncome * exchangeRate, cnTaxBrackets);
-            const sgTaxInCNY = sgTax * exchangeRate;
+            const totalTaxInCNY = calculateCNTax(totalIncome * rate, yearlyBonus * rate, rsuSold * rate);
+            const sgTaxInCNY = sgTax * rate;
             const cnSpecificTaxInCNY = totalTaxInCNY - sgTaxInCNY;
+
+            // Only SG tax resident
             const sgTaxOnlyInSGD = calculateProgressiveTax(totalPackage, sgTaxBrackets)
-            const afterTaxInSGD = totalIncome - totalTaxInCNY / exchangeRate;
+            const afterTaxInSGD = totalIncome - totalTaxInCNY / rate;
             const sgAfterTaxInSGD = totalPackage - sgTaxOnlyInSGD;
             const afterTaxDiff = sgAfterTaxInSGD - afterTaxInSGD;
 
             // Display results
-            document.getElementById('cashIncome').innerText = formatCurrencySG(cashPart, exchangeRate);
-            document.getElementById('compensation').innerText = formatCurrencySG(compensation, exchangeRate);
-            document.getElementById('totalIncome').innerText = formatCurrencySG(totalIncome, exchangeRate);
-            document.getElementById('sgTax').innerText = formatCurrencySG(sgTax, exchangeRate);
-            document.getElementById('totalTax').innerText = formatCurrencyCN(totalTaxInCNY, exchangeRate);
-            document.getElementById('cnTax').innerText = formatCurrencyCN(cnSpecificTaxInCNY, exchangeRate);
-            document.getElementById('afterTax').innerText = formatCurrencySG(afterTaxInSGD, exchangeRate);
+            document.getElementById('cashIncome').innerText = formatCurrencySG(cashPart, rate);
+            document.getElementById('compensation').innerText = formatCurrencySG(compensation, rate);
+            document.getElementById('totalIncome').innerText = formatCurrencySG(totalIncome, rate);
+            document.getElementById('sgTax').innerText = formatCurrencySG(sgTax, rate);
+            document.getElementById('totalTax').innerText = formatCurrencyCN(totalTaxInCNY, rate);
+            document.getElementById('cnTax').innerText = formatCurrencyCN(cnSpecificTaxInCNY, rate);
+            document.getElementById('afterTax').innerText = formatCurrencySG(afterTaxInSGD, rate);
 
-            document.getElementById('sgTotalIncome').innerText = formatCurrencySG(totalPackage, exchangeRate);
-            document.getElementById('sgTaxOnly').innerText = formatCurrencySG(sgTaxOnlyInSGD, exchangeRate);
-            document.getElementById('sgAfterTax').innerText = formatCurrencySG(sgAfterTaxInSGD, exchangeRate);
-            document.getElementById('afterTaxDiff').innerText = formatCurrencySG(afterTaxDiff, exchangeRate);
+            document.getElementById('sgTotalIncome').innerText = formatCurrencySG(totalPackage, rate);
+            document.getElementById('sgTaxOnly').innerText = formatCurrencySG(sgTaxOnlyInSGD, rate);
+            document.getElementById('sgAfterTax').innerText = formatCurrencySG(sgAfterTaxInSGD, rate);
+            document.getElementById('afterTaxDiff').innerText = formatCurrencySG(afterTaxDiff, rate)
+                + ` / ${(100 * -afterTaxDiff / sgAfterTaxInSGD).toFixed(2)}%`;
         }
 
         // Initial calculation
         calculateTax();
+        for (const input of document.querySelectorAll('input')) {
+            input.addEventListener('input', () => calculateTax());
+        }
     </script>
 </body>
 </html>
