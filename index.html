@@ -26,20 +26,24 @@
             text-align: center;
             color: #333;
         }
-        label {
-            font-size: 0.9rem;
-            color: #555;
-            margin-bottom: 5px;
-            display: block;
-        }
-        input {
-            width: 100%;
-            padding: 10px;
+        .form-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             margin-bottom: 15px;
+        }
+        .form-row label {
+            flex: 1;
+            margin-right: 10px;
+            font-size: 0.9rem;
+            color: #333;
+        }
+        .form-row input {
+            flex: 2;
+            padding: 10px;
             font-size: 1rem;
             border: 1px solid #ccc;
             border-radius: 4px;
-            box-sizing: border-box;
         }
         .result {
             font-size: 80%;
@@ -92,20 +96,35 @@
           Source code: <a href="https://github.com/chinapal/ttsg-tax">chinapal/ttsg-tax</a></p>
         </div>
 
-        <label for="monthlyPay">* Monthly Base Salary (cash, in SGD):</label>
-        <input type="number" id="monthlyPay" value="10000" step="1">
+        <div class="form-row">
+            <label for="monthlyPay">* Monthly Base Salary (cash, in SGD):</label>
+            <input type="number" id="monthlyPay" value="10000" step="1">
+        </div>
 
-        <label for="bonusMonths">Target Bonus (in months):</label>
-        <input type="number" id="bonusMonths" value="3" step="1">
-        
-        <label for="rsuSold">* RSU Sold (counts toward total income, in SGD):</label>
-        <input type="number" id="rsuSold" value="50000" step="1">
+        <div class="form-row">
+            <label for="bonusMonths">Target Bonus (in months):</label>
+            <input type="number" id="bonusMonths" value="3" step="1">
+        </div>
 
-        <label for="compensationPercentage">* Your Tax Compensation (%):</label>
-        <input type="number" id="compensationPercentage" value="10" step="0.1">
+        <div class="form-row">
+            <label for="rsuSold">* RSU Sold (counts toward total income, in SGD):</label>
+            <input type="number" id="rsuSold" value="50000" step="1">
+        </div>
 
-        <label for="exchangeRate">Exchange Rate (SGD to CNY):</label>
-        <input type="number" id="exchangeRate" value="5.39" step="0.01">
+        <div class="form-row">
+            <label for="compensationPercentage">* Your Tax Subsidy Ratio (%):</label>
+            <input type="number" id="compensationPercentage" value="10" step="0.1">
+        </div>
+
+        <div class="form-row">
+            <label for="employedDays">Employed Calendar Days (total 366 for 2024):</label>
+            <input type="number" id="employedDays" value="366" step="1">
+        </div>
+
+        <div class="form-row">
+            <label for="exchangeRate">Exchange Rate (SGD to CNY):</label>
+            <input type="number" id="exchangeRate" value="5.39" step="0.01">
+        </div>
 
         <div class="checkbox-row">
           <input type="checkbox" id="separatedBonusTax" checked>
@@ -117,9 +136,9 @@
         <p>If you're both China & Singapore tax resident:</p>
         <div class="result" id="result">
             <p>Cash Income: <span class="amount" id="cashIncome"></span></p>
-            <p>Tax Comp.: <span class="amount" id="compensation"></span></p>
-            <p>Total Income <sup>[3]</sup>: <span class="amount" id="totalIncome"></span></p>
-            <p>Total Tax <sup>[4]</sup>: <span class="amount" id="totalTax"></span></p>
+            <p>Tax Subsidy <sup>[3]</sup>: <span class="amount" id="compensation"></span></p>
+            <p>Total Income <sup>[4]</sup>: <span class="amount" id="totalIncome"></span></p>
+            <p>Total Tax <sup>[5]</sup>: <span class="amount" id="totalTax"></span></p>
             <p>SG Tax: <span class="amount" id="sgTax"></span></p>
             <p>CN Tax: <span class="amount" id="cnTax"></span></p>
             <p>After Tax: <span class="amount" id="afterTax"></span></p>
@@ -128,7 +147,7 @@
         <p>If you're Singapore tax resident only:</p>
         <div class="result" id="result">
             <p>Total Income: <span class="amount" id="sgTotalIncome"></span></p>
-            <p>SG Tax <sup>[5]</sup>: <span id="sgTaxOnly"></span></p>
+            <p>SG Tax <sup>[6]</sup>: <span id="sgTaxOnly"></span></p>
             <p>After Tax: <span class="amount" id="sgAfterTax"></span></p>
             <p>After Tax Diff: <span id="afterTaxDiff"></span></p>
         </div>
@@ -138,9 +157,10 @@
             <ul>
                 <li>[1]: Calculate yearly bonus tax separately, <a href="https://www.chinatax.gov.cn/n810341/n810765/n812188/n812950/c1201370/content.html">https://www.chinatax.gov.cn...</a></li>
                 <li>[2]: Calculate RSU tax separately, <a href="https://www.gov.cn/zhengce/zhengceku/202308/content_6900234.htm">https://www.gov.cn/...</a></li>
-                <li>[3]: Total Income = total package + tax compensation</li>
-                <li>[4]: CN tax rate <a href="https://cw.nwu.edu.cn/info/1009/2474.htm" target="_blank">https://cw.nwu.edu.cn/...</a></li>
-                <li>[5]: SG tax rate <a href="https://www.iras.gov.sg/taxes/individual-income-tax/basics-of-individual-income-tax/tax-residency-and-tax-rates/individual-income-tax-rates" target="_blank">https://www.iras.gov.sg/...</a></li>
+                <li>[3]: For simplicity, the income tax on the tax subsidy itself for the following year is accounted for in the current year.</li>
+                <li>[4]: Total Income = total package + tax subsidy</li>
+                <li>[5]: CN tax rate <a href="https://cw.nwu.edu.cn/info/1009/2474.htm" target="_blank">https://cw.nwu.edu.cn/...</a></li>
+                <li>[6]: SG tax rate <a href="https://www.iras.gov.sg/taxes/individual-income-tax/basics-of-individual-income-tax/tax-residency-and-tax-rates/individual-income-tax-rates" target="_blank">https://www.iras.gov.sg/...</a></li>
             </ul>
         </div>
     </div>
@@ -185,8 +205,8 @@
             return formatCurrencies(sgdValue, cnyValue);
         }
         function formatCurrencies(sgdValue, cnyValue) {
-            const format = (value) => value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-            return `$${format(sgdValue)} / ¥${format(cnyValue)}`;
+            const format = (value, currency) => value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0, currency, style: 'currency' });
+            return `${format(sgdValue, 'SGD')} / ${format(cnyValue, 'CNY')}`;
         }
 
         // Calculate progressive tax
@@ -223,9 +243,9 @@
             const bonusMonths = parseFloat(document.getElementById('bonusMonths').value);
             const rsuSold = parseFloat(document.getElementById('rsuSold').value);
             const rate = parseFloat(document.getElementById('exchangeRate').value);
-            const compensationPercentage = parseFloat(document.getElementById('compensationPercentage').value) / 100;
+            const compRatio = parseFloat(compensationPercentage.value) / 100 * Number(employedDays.value) / 366;
 
-            if (!monthlyPay || rsuSold < 0 || rate <= 0 || bonusMonths < 0 || compensationPercentage < 0 || compensationPercentage > 1) {
+            if (!monthlyPay || rsuSold < 0 || rate <= 0 || bonusMonths < 0 || compRatio < 0 || compRatio > 1) {
                 for (const el of document.querySelectorAll('.amount')) el.innerText = formatCurrencySG(0, rate);
                 return;
             }
@@ -233,7 +253,7 @@
             const basePay = monthlyPay * 12;
             const yearlyBonus = monthlyPay * bonusMonths;
             const cashPart = basePay + yearlyBonus;
-            const compensation = cashPart * compensationPercentage;
+            const compensation = cashPart * compRatio;
             const totalPackage = cashPart + rsuSold
             const totalIncome = totalPackage + compensation;
 
@@ -247,7 +267,7 @@
             const sgTaxOnlyInSGD = calculateProgressiveTax(totalPackage, sgTaxBrackets)
             const afterTaxInSGD = totalIncome - totalTaxInCNY / rate;
             const sgAfterTaxInSGD = totalPackage - sgTaxOnlyInSGD;
-            const afterTaxDiff = sgAfterTaxInSGD - afterTaxInSGD;
+            const afterTaxDiff = afterTaxInSGD - sgAfterTaxInSGD;
 
             // Display results
             document.getElementById('cashIncome').innerText = formatCurrencySG(cashPart, rate);
@@ -262,7 +282,7 @@
             document.getElementById('sgTaxOnly').innerText = formatCurrencySG(sgTaxOnlyInSGD, rate);
             document.getElementById('sgAfterTax').innerText = formatCurrencySG(sgAfterTaxInSGD, rate);
             document.getElementById('afterTaxDiff').innerText = formatCurrencySG(afterTaxDiff, rate)
-                + ` / ${(100 * -afterTaxDiff / sgAfterTaxInSGD).toFixed(2)}%`;
+                + ` / ${(100 * afterTaxDiff / sgAfterTaxInSGD).toFixed(2)}%`;
         }
 
         // Initial calculation
